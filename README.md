@@ -22,4 +22,4 @@ export PATH="$インストール先/util_scripts/bin:$PATH"
 ```
 
 ## Licence
-CC0
+Unlicense
