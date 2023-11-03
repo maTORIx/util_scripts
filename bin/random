@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# ヘルプメッセージを表示する関数
+function print_help {
+  echo "使用法: $0 [数値]"
+  echo "  数値: 出力するBASE64文字列の長さです。この引数はオプショナルです。"
+  echo "        引数がない場合、デフォルトで32文字のBASE64文字列が出力されます。"
+  echo "  -h: このヘルプメッセージを表示します。"
+}
+
+# 引数が-hの場合はヘルプを表示
+if [[ "$1" == "-h" ]]; then
+  print_help
+  exit 0
+fi
+
+# 引数の数値を取得（デフォルトは32）
+length=${1:-32}
+
+# 引数が整数でない場合はエラーメッセージを表示して終了
+if ! [[ "$length" =~ ^[0-9]+$ ]]; then
+  echo "エラー: 数値が必要です。"
+  print_help
+  exit 1
+fi
+
+# BASE64文字列を生成
+# ランダムなバイナリデータを生成し、BASE64でエンコード、そして指定された長さでカット
+base64_string=$(head -c "$((length * 3 / 4 + 1))" /dev/urandom | base64 | tr -d '\n' | cut -c1-"$length")
+
+# 結果を出力
+echo "$base64_string"
+
+exit 0
+

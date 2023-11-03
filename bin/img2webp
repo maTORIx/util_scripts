@@ -1,0 +1,93 @@
+#!/bin/bash
+
+print_help() {
+         echo "使用法: $0 [オプション] <クオリティ> <画像ファイルまたはディレクトリ>"
+   echo "オプション:"
+  echo "  -r    ディレクトリモードで実行し、指定されたディレクトリ内のすべての"
+  echo "        jpg, jpeg, および png ファイルをWebPに変換します。"
+  echo "  -d    変換後に元のファイルを削除します。"
+  echo "引数:"
+  echo "  <クオリティ>         画像のクオリティを指定します（0から100までの値）。"
+  echo "                        引数が1つのみの場合、クオリティは95に設定されます。"
+  echo "  <画像ファイルまたはディレクトリ>  変換する画像ファイルまたはディレクトリへのパス。"
+  echo "例:"
+  echo "  $0 80 image.png              # クオリティ80でimage.pngをWebPに変換します。"
+  echo "  $0 image.png                  # クオリティ95でimage.pngをWebPに変換します。"
+  echo "  $0 -r images_directory        # images_directory内の画像をクオリティ95でWebPに変換します。"
+  echo "  $0 -rd images_directory       # images_directory内の画像をWebPに変換し、元のファイルを削除します。"
+  echo "  $0 -r 80 images_directory     # images_directory内の画像をクオリティ80でWebPに変換します。"
+}
+
+
+# デフォルトのクオリティを設定
+quality=95
+
+# フォルダモードと削除モードのフラグ
+recursive_mode=false
+delete_mode=false
+
+# 引数解析
+while getopts 'rdh' flag; do
+  case "${flag}" in
+    r) recursive_mode=true ;;
+    d) delete_mode=true ;;
+    h)
+	    print_help
+	    exit 0
+	    ;;
+    *) error="不明なオプション: ${flag}" ;;
+  esac
+done
+
+# オプション後の引数を処理する
+shift $((OPTIND-1))
+
+# 引数の個数チェック
+if [ $# -eq 0 ]; then
+  echo "エラー: 引数が足りません。クオリティとファイル名、またはディレクトリを指定してください。"
+  exit 1
+elif [ $# -eq 1 ]; then
+  file_path=$1
+elif [ $# -eq 2 ]; then
+  quality=$1
+  file_path=$2
+else
+  echo "エラー: 引数が多すぎます。"
+  exit 1
+fi
+
+# ファイル変換関数
+convert_file() {
+  local input_file=$1
+  local output_file="${input_file%.*}.webp"
+
+  # ffmpegを使用して変換
+  ffmpeg -i "$input_file" -loglevel quiet -y -compression_level 6 -quality "$quality" "$output_file"
+
+  if $delete_mode; then
+    rm "$input_file"
+  fi
+}
+
+# メイン処理
+if $recursive_mode && [ -d "$file_path" ]; then
+  # ディレクトリ内のすべてのjpg, jpeg, pngファイルを変換
+  filelist=$(find "$file_path" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \));
+  list_len=$(echo "$filelist" | wc -l)
+  count=0
+  for filepath in $filelist;do
+	  convert_file "$filepath"
+	  count=$((count+1))
+	  printf "%d/%d\r" "$count" "$list_len"
+  done
+
+elif [ -f "$file_path" ]; then
+  # 単一のファイルを変換
+  convert_file "$file_path"
+else
+  echo "エラー: 指定されたファイルまたはディレクトリが存在しません。"
+  exit 1
+fi
+
+exit 0
+
